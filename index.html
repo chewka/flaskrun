@@ -1,0 +1,772 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html,body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+<title>Metals Flask Run</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600&family=Pixelify+Sans:wght@400;600&display=swap">
+<style>
+/* Layout: header + sticky folder tabs over one centered column; the game stage is a dark window onto a pixel lab bench */
+:root{
+  --bg:#f2f5f3; --surface:#ffffff; --sunk:#e5ece8; --ink:#16201d; --muted:#56655f; --line:#cfdad5;
+  --gold:#8a5f00; --gold-soft:#f8edd0; --teal:#1b665f; --teal-soft:#d5ebe7;
+  --bad:#b3261e; --bad-soft:#fbe4e1; --ok:#22693a; --ok-soft:#ddf0e2;
+  --stage:#1b2523; --cta:#f1c544; --cta-ink:#1a1405;
+  --f-display:"Pixelify Sans", ui-monospace, monospace;
+  --f-body:"Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1513; --surface:#18201d; --sunk:#1f2925; --ink:#e2ebe7; --muted:#97a7a1; --line:#2c3833;
+  --gold:#e8bf55; --gold-soft:#33290f; --teal:#73cbc1; --teal-soft:#13302c;
+  --bad:#ff8f86; --bad-soft:#3a1714; --ok:#86d898; --ok-soft:#15301c;
+  --stage:#0a0f0e; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0f1513; --surface:#18201d; --sunk:#1f2925; --ink:#e2ebe7; --muted:#97a7a1; --line:#2c3833;
+  --gold:#e8bf55; --gold-soft:#33290f; --teal:#73cbc1; --teal-soft:#13302c;
+  --bad:#ff8f86; --bad-soft:#3a1714; --ok:#86d898; --ok-soft:#15301c;
+  --stage:#0a0f0e; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 var(--f-body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 56px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.wrap{max-width:1040px;margin-inline:auto}
+button{font-family:inherit}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:14px 24px;padding-block:24px 14px}
+h1{font-family:var(--f-display);font-weight:600;font-size:clamp(30px,5.4vw,44px);line-height:.95;margin:0;letter-spacing:.01em;text-wrap:balance}
+h1 span{color:var(--gold)}
+.sub{margin:8px 0 0;color:var(--muted);font-size:14px}
+.seg{display:inline-flex;border:2px solid var(--ink);border-radius:6px;overflow:hidden;background:var(--surface)}
+.seg button{font:600 16px var(--f-display);padding:7px 18px;border:0;background:transparent;color:var(--ink);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.volbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;padding-block:0 14px}
+.lbl{font:700 11px var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.vol{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chip{font:600 12.5px var(--f-mono);padding:5px 10px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:4px;cursor:pointer;font-variant-numeric:tabular-nums}
+.chip.mine{border-color:var(--gold)}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.other{display:inline-flex;align-items:center;gap:5px;font:12.5px var(--f-mono);color:var(--muted)}
+.other input{width:76px;font:600 12.5px var(--f-mono);padding:5px 7px;border:1.5px solid var(--line);border-radius:4px;background:var(--surface);color:var(--ink)}
+
+nav.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:6;background:var(--bg);border-bottom:2px solid var(--ink)}
+.tabrow{max-width:1040px;margin-inline:auto;display:flex;gap:4px;overflow-x:auto;padding-top:8px;scrollbar-width:thin}
+.tab{flex:0 0 auto;display:inline-flex;align-items:center;gap:7px;font:700 13.5px var(--f-body);padding:7px 12px;border:1.5px solid var(--line);border-bottom:0;border-radius:7px 7px 0 0;background:var(--sunk);color:var(--muted);cursor:pointer;white-space:nowrap}
+.tab[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.dot{width:10px;height:10px;border-radius:2px;border:1.5px solid currentColor;flex:0 0 auto}
+
+h2{font-family:var(--f-display);font-weight:600;font-size:clamp(24px,3.6vw,32px);line-height:1.08;margin:8px 0 4px;text-wrap:balance}
+h3{font:700 11.5px var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+.code{font:600 12px var(--f-mono);letter-spacing:.04em;color:var(--gold);background:var(--gold-soft);padding:2px 7px;border-radius:3px}
+.muted{color:var(--muted)}
+
+/* overview */
+.ov-intro{display:grid;gap:16px;padding-block:24px 18px}
+.ov-intro p{margin:0;max-width:68ch}
+.flow{display:grid;gap:8px;padding:14px;border:1.5px dashed var(--line);border-radius:8px}
+.flowrow{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.fchip{font:700 12.5px var(--f-body);padding:4px 9px;border:1.5px solid var(--ink);border-radius:4px;background:var(--surface);color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.fchip.stock{border-style:dashed;cursor:default;background:transparent;color:var(--muted);border-color:var(--muted)}
+.arr{color:var(--muted);font-family:var(--f-mono);font-size:13px}
+.tbl{overflow-x:auto;border:1.5px solid var(--ink);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:760px;font-size:14px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+thead th{font:700 11px var(--f-body);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);background:var(--sunk)}
+tr.grp th{font:600 16px var(--f-display);background:var(--bg);border-bottom:1.5px solid var(--ink);padding-top:14px}
+tr.grp th span{font:400 12px var(--f-mono);color:var(--muted);margin-left:10px}
+tr.row:hover td{background:var(--sunk)}
+td.mono{font:12.5px/1.6 var(--f-mono);font-variant-numeric:tabular-nums}
+.nm{display:inline-flex;align-items:center;gap:8px;font:700 14px var(--f-body);background:none;border:0;padding:0;color:var(--ink);cursor:pointer;text-align:left}
+.nm:hover{text-decoration:underline}
+
+/* solution header */
+.solhead{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px 28px;align-items:flex-end;padding-block:24px 8px}
+.solhead > div{min-width:0}
+.matrix{margin:0;color:var(--muted)}
+.facts{display:grid;grid-template-columns:auto auto;gap:3px 16px;font-size:13px;margin:0}
+.facts dt{color:var(--muted)}
+.facts dd{margin:0;font:600 12.5px var(--f-mono)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;padding-block:6px 10px}
+.ac{font:600 12.5px var(--f-mono);padding:3px 8px;border-radius:3px;background:var(--teal-soft);color:var(--teal)}
+.opts{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;padding-block:2px 12px}
+.callout{border:1.5px dashed var(--gold);background:var(--gold-soft);padding:10px 14px;border-radius:6px;font-size:14px;margin-block:4px 10px;max-width:80ch}
+.callout.warn{border-color:var(--bad);background:var(--bad-soft)}
+
+/* game */
+.stage{background:var(--stage);border-radius:10px;padding:8px;border:2px solid var(--ink)}
+canvas#game{display:block;width:100%;image-rendering:pixelated;border-radius:4px;touch-action:none;cursor:pointer;-webkit-user-select:none;user-select:none}
+.gmsg{min-height:2.9em;margin:10px 2px 0;font-size:14.5px;max-width:80ch}
+.gmsg.ok{color:var(--ok)} .gmsg.bad{color:var(--bad)} .gmsg.info{color:var(--muted)}
+.pad{display:flex;flex-wrap:wrap;gap:10px;padding-block:6px 4px;align-items:center}
+.pbtn{font:600 16px var(--f-display);padding:10px 18px;border:2px solid var(--ink);background:var(--surface);color:var(--ink);border-radius:6px;box-shadow:0 3px 0 var(--ink);cursor:pointer;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
+.pbtn:active{transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
+.pbtn.main{background:var(--cta);color:var(--cta-ink);border-color:var(--ink)}
+.pbtn.cap{background:var(--ink);color:var(--bg)}
+.padnote{color:var(--muted);font-size:14px}
+kbd{font:11px var(--f-mono);padding:1px 4px;border:1px solid currentColor;border-radius:3px;opacity:.7;margin-left:6px}
+details.cheat{margin-top:16px;border:1.5px solid var(--line);border-radius:8px;background:var(--surface)}
+details.cheat summary{cursor:pointer;padding:10px 14px;font-weight:700}
+details.cheat .inner{padding:0 14px 14px}
+
+/* learn */
+.learn{display:grid;grid-template-columns:minmax(170px,230px) minmax(0,1fr);gap:28px;align-items:start;padding-block:6px}
+.flaskfig{position:sticky;top:64px;margin:0}
+.flaskfig svg{width:100%;height:auto;max-width:230px;display:block;margin-inline:auto}
+.flaskfig figcaption{text-align:center;font:600 13px var(--f-mono);color:var(--muted);margin-top:6px}
+#liq{transition:transform .7s cubic-bezier(.3,.7,.3,1)}
+ol.steps{list-style:none;padding:0;margin:0 0 22px;display:grid;gap:8px}
+ol.steps li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 12px;align-items:start;padding:12px 14px;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+ol.steps li.done{background:var(--ok-soft);border-color:transparent}
+.sn{font:600 14px var(--f-display);width:28px;height:28px;display:grid;place-items:center;border:2px solid var(--ink);border-radius:50%;background:transparent;color:var(--ink);cursor:pointer;padding:0}
+li.done .sn{background:var(--ink);color:var(--bg)}
+.stxt b{display:block}
+.stxt small{display:block;color:var(--muted);font-size:13px;margin-top:2px}
+.stxt small.warn{color:var(--bad)}
+.svol{font:600 15px var(--f-mono);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.svol small{display:block;font-size:11.5px;color:var(--muted);font-weight:400}
+.lgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:22px}
+.math{font:12.5px/1.8 var(--f-mono);margin:0;padding:0;list-style:none}
+.math b{color:var(--teal)}
+.labelcard{display:inline-grid;gap:3px;padding:12px 16px;background:var(--surface);border:2px solid var(--ink);border-radius:4px;font:12.5px/1.45 var(--f-mono);max-width:100%}
+.labelcard .big{font:600 15px var(--f-mono)}
+.labelcard input{font:600 12.5px var(--f-mono);width:56px;padding:1px 4px;border:1px solid var(--line);border-radius:3px;background:var(--bg);color:var(--ink)}
+ul.notes{margin:0;padding-left:18px;display:grid;gap:6px;font-size:14px}
+.foot{margin-top:28px;font-size:12.5px;color:var(--muted);max-width:80ch}
+@media (max-width:720px){.learn{grid-template-columns:1fr}.flaskfig{position:static}.flaskfig svg{max-width:150px}}
+@media (prefers-reduced-motion:reduce){#liq{transition:none}}
+</style>
+</head>
+<body>
+<header class="wrap top">
+  <div>
+    <h1>Metals <span>Flask</span> Run</h1>
+    <p class="sub">SOP 2-HMN v10.0 · every heavy-metals solution, scaled to the flask you have</p>
+  </div>
+  <div class="seg" role="group" aria-label="Mode">
+    <button id="mPlay" type="button">Play</button><button id="mLearn" type="button">Learn</button>
+  </div>
+</header>
+<div class="wrap volbar"><span class="lbl">Flask size</span><div id="vols" class="vol"></div></div>
+<nav class="tabs" aria-label="Solutions"><div class="tabrow" id="tabs" role="tablist"></div></nav>
+<main class="wrap" id="view"></main>
+
+<script>
+/* ---------- storage & state ---------- */
+const $=s=>document.querySelector(s);
+const store={get(k,d){try{const v=localStorage.getItem('mfr.'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+             set(k,v){try{localStorage.setItem('mfr.'+k,JSON.stringify(v))}catch(e){}}};
+const state={tab:'solutions',mode:store.get('mode','play'),vol:store.get('vol',200),chain:store.get('chain','ical'),
+             cal:store.get('cal',4),init:store.get('init',''),num:store.get('num',{}),checks:{}};
+
+/* ---------- formatting ---------- */
+const num=(x,p=3)=>String(+(+x).toPrecision(p));
+const fmtC=ppm=>!ppm?'0 ppb':ppm>=1?num(ppm)+' ppm':num(ppm*1000)+' ppb';
+const fmtV=v=>v==null?'':v>=100?v.toFixed(0)+' mL':v>=10?v.toFixed(1)+' mL':v>=1?v.toFixed(2)+' mL':v.toFixed(3)+' mL';
+const fmtUL=v=>{const u=v*1000;return (u<10?u.toFixed(1):Math.round(u))+' µL'};
+const vShort=(v,ap)=>(ap?'~':'')+(v<1?fmtUL(v):v>=100?Math.round(v)+' mL':num(v)+' mL');
+const CLASSA={10:.02,25:.03,50:.05,100:.08,200:.10,250:.12,500:.20,1000:.30};
+const tolFor=V=>CLASSA[V]??Math.max(.01,+(V*.0005).toFixed(3));
+const addMonths=(d,n)=>{const r=new Date(d),day=r.getDate();r.setMonth(r.getMonth()+n);if(r.getDate()<day)r.setDate(0);return r};
+const fmtD=d=>`${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}/${d.getFullYear()}`;
+const val=x=>typeof x==='function'?x():x;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---------- bottles on the shelf ---------- */
+const ITEMS={
+  di:{full:'DI water',short:'DI',liq:'#d6f0fb',cap:'#2f9fd8'},
+  hno3:{full:'HNO₃, conc. (67–70%)',short:'HNO3',liq:'#f4e389',cap:'#d39e00',acid:'HNO₃'},
+  hcl:{full:'HCl, conc. (34–37%)',short:'HCl',liq:'#e3f1ff',cap:'#2c62c9',acid:'HCl'},
+  h2o2:{full:'H₂O₂ 30%',short:'H2O2',liq:'#e9fff2',cap:'#2e9b5a'},
+  au1000:{full:'Au 1000 ppm stock',short:'Au 1000',liq:'#ffd24a',cap:'#9c6f05',conc:{Au:1000},stock:true},
+  au100:{full:'Au 100 ppm intermediate (HMAu)',short:'Au 100',liq:'#ffe7a0',cap:'#c99512',conc:{Au:100}},
+  ismix:{full:'Internal standard mix, 10 ppm',short:'IS mix',liq:'#e0d2ff',cap:'#6a4bcf',conc:{IS:10}},
+  tunemix:{full:'Tuning mix, 10 ppm',short:'Tune mix',liq:'#ffd3ea',cap:'#c93b88',conc:{Tune:10}},
+  dil:{full:'Diluent (HMDil)',short:'Diluent',liq:'#fff2bf',cap:'#b8901a'},
+};
+const MET=['As','Cd','Pb','Cr','Ni','Hg'];
+const STOCKCOL={As:['#c9f2d5','#2e7d32'],Cd:['#ffe2bf','#e0660a'],Pb:['#d5dde1','#4f6470'],Cr:['#d9efc9','#5c8f1e'],Ni:['#c3ece7','#00897b'],Hg:['#edf1f3','#8c9ba3']};
+Object.entries(STOCKCOL).forEach(([m,[l,c]])=>{ITEMS[m.toLowerCase()]={full:`${m} 1000 ppm stock`,short:`${m} 1000`,liq:l,cap:c,conc:{[m]:1000},stock:true}});
+const wsConc=(c,hg)=>{const o={};MET.forEach(m=>o[m]=m==='Hg'?c*hg:c);return o};
+[[1,100],[2,10],[3,1],[4,.01]].forEach(([n,c])=>{
+  ITEMS[`ws${n}i`]={full:`WS${n}, ICAL chain (${fmtC(c)}; Hg ${fmtC(c/10)})`,short:`WS${n} ICAL`,liq:'#c9efe0',cap:'#1f8a70',conc:wsConc(c,.1)};
+  ITEMS[`ws${n}c`]={full:`WS${n}, CCV chain (${fmtC(c)}, Hg too)`,short:`WS${n} CCV`,liq:'#ffdcb8',cap:'#d0661a',conc:wsConc(c,1)};
+});
+const ANAME={IS:'Each IS element',Tune:'Each tuning element'};
+const ORDER=['As','Cd','Pb','Cr','Ni','Hg','Au','IS','Tune'];
+
+/* ---------- the solutions, straight from SOP 2-HMN ---------- */
+const ACIDNOTE='Water first, then acid. Concentrated acid work happens in the fume hood (4.1, 4.4).';
+const ch=p=>p+(state.chain==='ical'?'i':'c');
+const oth=p=>p+(state.chain==='ical'?'c':'i');
+const chainName=()=>state.chain==='ical'?'ICAL':'CCV';
+const wrongChain=()=>`That bottle is from the ${state.chain==='ical'?'CCV':'ICAL'} chain. You are making the ${chainName()} chain (switch it above the game).`;
+const NODIL='Calibrators and CCVs are made up in diluent, not DI water, so their acid and gold match the digested samples.';
+const CAL=[{n:1,ppb:0},{n:2,ppb:.2,src:'ws4i',v:1},{n:3,ppb:.5,src:'ws4i',v:2.5},{n:4,ppb:1,src:'ws3i',v:.05},{n:5,ppb:5,src:'ws3i',v:.25},{n:6,ppb:10,src:'ws3i',v:.5},{n:7,ppb:50,src:'ws3i',v:2.5}];
+const curCal=()=>CAL[state.cal-1]||CAL[3];
+const WSNOTE='The SOP batch is 10 mL. The analyst may change the final volume (7.4.3.3), but a bigger flask uses proportionally more stock.';
+
+const SOLS=[
+ {id:'gold',tab:'Gold 100 ppm',name:'Intermediate gold solution',code:'HMAu',matrix:'100 ppm Au in 10% HCl',base:100,exp:3,sop:'7.3.1',log:'4-HMR',liq:'#f2b705',grp:'reagent',
+  steps:()=>[{k:'pre',item:'di',v:50,approx:true,note:ACIDNOTE},{k:'add',item:'hcl',v:10},{k:'add',item:'au1000',v:10},{k:'qs',item:'di'}],
+  decoys:()=>[['au100','That is the 100 ppm gold you are making. Start from the 1000 ppm stock.'],['hno3','The gold intermediate is in HCl only. No nitric in this one.'],['h2o2','Peroxide is a digestion reagent. It never goes in a standard.']],
+  notes:['Gold keeps mercury in solution and cuts Hg memory in the sample lines. That is why it goes into the diluent and into every digested sample (0.1 mL of this per tube, 12.7.6).','Make this before the diluent. The diluent uses it.'],
+  safety:['Concentrated HCl causes severe burns and eye damage (Table 2).']},
+ {id:'diluent',tab:'Diluent',name:'Diluent for calibration standards',code:'HMDil',matrix:'4% HNO₃, 0.8% HCl, 200 ppb Au',base:1000,exp:3,sop:'7.3.2',log:'4-HMR',liq:'#e3b844',grp:'reagent',
+  steps:()=>[{k:'pre',item:'di',v:500,approx:true,note:ACIDNOTE},{k:'add',item:'hno3',v:40},{k:'add',item:'hcl',v:8},{k:'add',item:'au100',v:2},{k:'qs',item:'di'}],
+  decoys:()=>[['au1000','Use the 100 ppm gold intermediate. The 1000 ppm stock gives ten times too much gold.'],['ismix','The internal standard is its own solution (7.4.1). It does not go in the diluent.'],['h2o2','Peroxide is a digestion reagent. It never goes in the diluent.']],
+  notes:['Every calibration standard and CCV is made up in this (7.3.2.1), so they match the acid and gold in the digested samples.'],
+  safety:['Concentrated HNO₃ is an oxidizer and corrosive; HCl causes severe burns (Table 2).']},
+ {id:'rinse',tab:'Rinse / carrier',name:'Rinse and carrier solution',code:'HMRin',matrix:'4% HNO₃, 0.8% HCl',base:1000,exp:3,sop:'7.3.3',log:'4-HMR',liq:'#6faee0',grp:'reagent',
+  steps:()=>[{k:'pre',item:'di',v:500,approx:true,note:ACIDNOTE},{k:'add',item:'hno3',v:40},{k:'add',item:'hcl',v:8},{k:'qs',item:'di'}],
+  decoys:()=>[['au100','No gold in the rinse. Gold goes in the diluent.'],['h2o2','Peroxide is a digestion reagent, not a rinse.']],
+  notes:['Fills the instrument’s three rinse containers and the carrier (7.3.3.1). Rinse goes fast, so the 1 L SOP batch may suit it better than a 200 mL flask.'],
+  safety:['Concentrated HNO₃ and HCl in the fume hood (4.4).']},
+ {id:'istd',tab:'Internal std',name:'Internal standard',code:'HMIS',matrix:'200 ppb in 4% HNO₃',base:250,exp:3,sop:'7.4.1',log:'4-HMWSP',liq:'#9b7be0',grp:'ws',
+  steps:()=>[{k:'pre',item:'di',v:125,approx:true,note:ACIDNOTE},{k:'add',item:'hno3',v:10},{k:'add',item:'ismix',v:5},{k:'qs',item:'di'}],
+  decoys:()=>[['tunemix','Tuning mix (Ce, Co, Li, Tl, Y) is for the auto-tune, not the internal standard.'],['hcl','The internal standard is in 4% HNO₃ only. No HCl.']],
+  notes:['Elements: Bi, Ge, In, ⁶Li, Sc, Tb, Y at 200 ppb each.','Every injection must keep IS recovery within 80–120% of the calibration, or it gets re-run (11.6.3–11.6.4).'],
+  safety:['Concentrated HNO₃ in the fume hood.']},
+ {id:'tune',tab:'Tuning',name:'Tuning solution',code:'HMTS',matrix:'10 ppb in 2% HNO₃',base:250,exp:3,sop:'7.4.2',log:'4-HMWSP',liq:'#e36aa8',grp:'ws',
+  steps:()=>[{k:'pre',item:'di',v:125,approx:true,note:ACIDNOTE},{k:'add',item:'hno3',v:5},{k:'add',item:'tunemix',v:.25},{k:'qs',item:'di'}],
+  decoys:()=>[['ismix','That is the internal standard mix. Tuning uses Ce, Co, Li, Tl, Y.'],['hcl','The tuning solution is in 2% HNO₃ only. No HCl.']],
+  notes:['Elements: Ce, Co, Li, Tl, Y at 10 ppb each.','Tune passes when m/z 59, 89 and 205 read above 2000 CPS with RSD under 5%, and the oxide and doubly charged ratios are under 5% (13.6).'],
+  safety:['Concentrated HNO₃ in the fume hood.']},
+ {id:'ws1i',tab:'WS1 · ICAL',name:'Intermediate working solution 1, ICAL',code:'HMWS',matrix:'100 ppm As Cd Pb Cr Ni, 10 ppm Hg, in 5% HNO₃',base:10,exp:3,sop:'7.4.3, Table 7',log:'4-HMWSP',liq:'#3fbf8f',grp:'ws',
+  steps:()=>[...['as','cd','pb','cr','ni'].map(m=>({k:'add',item:m,v:1,grp:'stock'})),{k:'add',item:'hg',v:.1,grp:'stock'},{k:'add',item:'hno3',v:.5},{k:'qs',item:'di'}],
+  decoys:()=>[['au1000','Gold stays out of the working standards. It goes in the diluent.'],['hcl','Working standards are in 5% HNO₃ only.']],
+  notes:['Hg is one tenth of the other metals in the ICAL chain, so the curve runs 0.02–5 ppb for Hg and 0.2–50 ppb for the rest (2.2).','The six stocks can go in any order.'],
+  callout:WSNOTE,safety:['Hg, As, Cd, Pb standards: reproductive hazard, skin and eye irritant (Table 2).']},
+ {id:'ws1c',tab:'WS1 · CCV',name:'Intermediate working solution 1, CCV',code:'HMWS',matrix:'100 ppm As Cd Pb Cr Ni Hg, in 5% HNO₃',base:10,exp:3,sop:'7.4.3, Table 8',log:'4-HMWSP',liq:'#f08a3c',grp:'ws',
+  steps:()=>[...['as','cd','pb','cr','ni','hg'].map(m=>({k:'add',item:m,v:1,grp:'stock'})),{k:'add',item:'hno3',v:.5},{k:'qs',item:'di'}],
+  decoys:()=>[['au1000','Gold stays out of the working standards. It goes in the diluent.'],['hcl','Working standards are in 5% HNO₃ only.']],
+  notes:['Hg matches the other metals in the CCV chain, so the CCV checks Hg at 0.8 ppb (Table 12, QC1).','The six stocks can go in any order.'],
+  callout:WSNOTE,safety:['Hg, As, Cd, Pb standards: reproductive hazard, skin and eye irritant (Table 2).']},
+ {id:'ws2',tab:'WS2 · 10 ppm',name:()=>`Intermediate working solution 2, ${chainName()} chain`,code:'HMWS',matrix:()=>state.chain==='ical'?'10 ppm metals, 1 ppm Hg, in 5% HNO₃':'10 ppm metals and Hg, in 5% HNO₃',base:10,exp:3,sop:'7.4.3, Table 9',log:'4-HMWSP',liq:()=>state.chain==='ical'?'#3fbf8f':'#f08a3c',grp:'ws',chain:true,
+  steps:()=>[{k:'add',item:ch('ws1'),v:1},{k:'add',item:'hno3',v:.5},{k:'qs',item:'di'}],
+  decoys:()=>[[oth('ws1'),wrongChain()],[ch('ws3'),'That is WS3. Each WS is made from the one before it.']],
+  notes:['Made from WS1 of the same chain.'],callout:WSNOTE,safety:['Contains Hg, As, Cd, Pb.']},
+ {id:'ws3',tab:'WS3 · 1 ppm',name:()=>`Intermediate working solution 3, ${chainName()} chain`,code:'HMWS',matrix:()=>state.chain==='ical'?'1 ppm metals, 0.1 ppm Hg, in 5% HNO₃':'1 ppm metals and Hg, in 5% HNO₃',base:10,exp:3,sop:'7.4.3, Table 10',log:'4-HMWSP',liq:()=>state.chain==='ical'?'#3fbf8f':'#f08a3c',grp:'ws',chain:true,
+  steps:()=>[{k:'add',item:ch('ws2'),v:1},{k:'add',item:'hno3',v:.5},{k:'qs',item:'di'}],
+  decoys:()=>[[oth('ws2'),wrongChain()],[ch('ws1'),'That is WS1. WS3 is made from WS2.']],
+  notes:['This is the “1000 ppb standard” in Tables 13 and 14. ICAL WS3 feeds calibrators L4–L7; CCV WS3 feeds the CCV.'],callout:WSNOTE,safety:['Contains Hg, As, Cd, Pb.']},
+ {id:'ws4',tab:'WS4 · 10 ppb',name:()=>`Intermediate working solution 4, ${chainName()} chain`,code:'HMWS',matrix:()=>state.chain==='ical'?'10 ppb metals, 1 ppb Hg, in 5% HNO₃':'10 ppb metals and Hg, in 5% HNO₃',base:10,exp:3,sop:'7.4.3, Table 11',log:'4-HMWSP',liq:()=>state.chain==='ical'?'#3fbf8f':'#f08a3c',grp:'ws',chain:true,
+  steps:()=>[{k:'add',item:ch('ws3'),v:.1},{k:'add',item:'hno3',v:.5},{k:'qs',item:'di'}],
+  decoys:()=>[[oth('ws3'),wrongChain()],[ch('ws2'),'That is WS2. WS4 is made from WS3.']],
+  notes:['This is the “10 ppb standard” in Table 13. ICAL WS4 feeds calibrators L2 and L3.'],callout:WSNOTE,safety:['Contains Hg, As, Cd, Pb.']},
+ {id:'cal',tab:'Cal stds L1–L7',name:()=>`Calibration standard L${curCal().n}`,code:()=>`Cal L${curCal().n}`,matrix:()=>{const c=curCal();return c.n===1?'Calibration blank, diluent only':`${num(c.ppb)} ppb As Cd Pb (Cr Ni), Hg ${num(c.ppb/10)} ppb, in diluent`},base:50,exp:null,sop:'9.2–9.6, Table 13',log:'4-HMCS',liq:'#4aa3df',grp:'cal',
+  steps:()=>{const c=curCal();const s=[{k:'pre',item:'dil',v:10,approx:true,note:'Start with some diluent in the flask.'}];if(c.src)s.push({k:'add',item:c.src,v:c.v});s.push({k:'qs',item:'dil'});return s},
+  decoys:()=>{const c=curCal();return [[c.src==='ws4i'?'ws3i':'ws4i','L2 and L3 come from the 10 ppb WS4. L4–L7 come from the 1 ppm WS3.'],['di',NODIL],['ws3c','Calibrators come from the ICAL chain. The CCV chain carries ten times the Hg.']]},
+  notes:['Run the curve lowest to highest, then two rinses and the 0.8 ppb CCV (9.6).','Curve passes at r ≥ 0.995 (r² ≥ 0.9900), at least 5 points besides the blank, each within ±25% (11.4.2).'],
+  callout:'The SOP makes each calibrator at 50 mL (Table 13). A bigger flask keeps every concentration the same. The SOP sets no expiration for calibrators, so confirm a 3-month shelf life with QA, and record the changed dilution scheme in the calibration package (9.5).',
+  safety:['Contains Hg, As, Cd, Pb at trace levels.']},
+ {id:'ccv',tab:'CCV 0.8 ppb',name:'Continuing calibration verification',code:'HMCCV',matrix:'0.8 ppb As Cd Pb Hg (Cr Ni), in diluent',base:500,exp:3,sop:'10.1–10.5, Table 14',log:'4-HMWSP',liq:'#f06f4f',grp:'qc',
+  steps:()=>[{k:'pre',item:'dil',v:100,approx:true,note:'About a fifth of the flask in diluent first (10.2).'},{k:'add',item:'ws3c',v:.4},{k:'qs',item:'dil'}],
+  decoys:()=>[['ws3i','Use WS3 from the CCV chain. The ICAL WS3 would put Hg at 0.08 ppb instead of 0.8.'],['di',NODIL],['ws4c','WS4 is only 10 ppb. The CCV takes the 1 ppm WS3.']],
+  notes:['CCV runs after the curve, at least every 20 samples, and at the end of the sequence (11.5.4). It passes at 75–125% (11.5.5).','A failed CCV means everything it brackets is re-run (11.5.9).'],
+  callout:'The SOP makes 500 mL (Table 14) with a 3-month expiration (10.3). A 200 mL flask gives the same 0.8 ppb and lasts far longer than a centrifuge tube of CCV.',
+  safety:['Contains Hg, As, Cd, Pb at trace levels.']},
+];
+const SOL=Object.fromEntries(SOLS.map(s=>[s.id,s]));
+
+/* ---------- math ---------- */
+const volFor=sol=>state.vol==='sop'?sol.base:state.vol;
+function resolve(sol){
+  const V=volFor(sol),f=V/sol.base;
+  const steps=sol.steps().map(s=>({...s,v:s.v!=null?s.v*f:null,sopV:s.v}));
+  const added=steps.filter(s=>s.k!=='qs').reduce((a,s)=>a+s.v,0);
+  const qs=steps.find(s=>s.k==='qs');if(qs)qs.v=Math.max(0,V-added);
+  const an={},acids={};
+  steps.forEach(s=>{if(s.k!=='add')return;const it=ITEMS[s.item];
+    if(it.conc)for(const[a,c]of Object.entries(it.conc))an[a]=(an[a]||0)+c*s.v/V;
+    if(it.acid)acids[it.acid]=(acids[it.acid]||0)+s.v/V*100;});
+  const warns=[],heavy=steps.filter(s=>s.k==='add'&&ITEMS[s.item].stock&&s.v>5);
+  if(heavy.length)warns.push(`Heavy on stock: this flask uses ${heavy.map(s=>`${fmtV(s.v)} ${ITEMS[s.item].short}`).join(', ')} (1000 ppm). The SOP batch uses ${heavy.map(s=>fmtV(s.sopV)).filter((x,i,a)=>a.indexOf(x)===i).join(' / ')} of each.`);
+  steps.forEach(s=>{if(s.k!=='add')return;const it=ITEMS[s.item];
+    if(s.v<.02)warns.push(`${fmtUL(s.v)} of ${it.short} is under the 20 µL low end of the pipettes (Table 3). Pick a bigger flask.`);});
+  return {V,f,steps,an,acids,warns,inDil:qs&&qs.item==='dil'};
+}
+function groupConc(o){const m=new Map();ORDER.filter(k=>o[k]!=null).forEach(k=>{const c=o[k];const key=c.toPrecision(6);if(!m.has(key))m.set(key,{c,names:[]});m.get(key).names.push(ANAME[k]||k)});return [...m.values()]}
+function chipsFor(r){
+  const out=groupConc(r.an).map(g=>`${g.names.join(' ')} ${fmtC(g.c)}`);
+  Object.entries(r.acids).forEach(([a,p])=>out.push(`${a} ${num(p,2)}%`));
+  if(r.inDil)out.push('in diluent');
+  if(!out.length)out.push('blank');
+  return out;
+}
+function pipPlan(s){
+  if(s.k==='qs')return 'Wash bottle. Last few mL drop by drop.';
+  if(s.approx)return s.v>=10?'Graduated cylinder, approximate is fine':'Pipette, approximate is fine';
+  if(s.v<.02)return null;
+  if(s.v>30)return 'Graduated cylinder or volumetric pipette';
+  const n=Math.ceil(s.v/5-1e-9),e=s.v/n;
+  const one=e<1?fmtUL(e):e.toFixed(2)+' mL';
+  return n===1?`One draw of ${one}`:`${n} draws of ${one} (5 mL max pipette)`;
+}
+function shortRecipe(r){return r.steps.map(s=>{const it=ITEMS[s.item];if(s.k==='qs')return `Q.S. ${it.short==='DI'?'DI':'diluent'}`;return `${s.approx?'~':''}${s.v<1?fmtUL(s.v):fmtV(s.v)} ${it.short}`}).join(' → ')}
+
+/* ---------- pixel game ---------- */
+const Game=(()=>{
+  let cv=null,ctx=null,s=2,W=320,H=150,GY=126,raf=0,last=0,sol=null,res=null,st=null,hooks={say(){},phase(){}};
+  const C={wall:'#d3e0da',wall2:'#c4d3cc',shelf:'#8c9f98',bench:'#283033',benchHi:'#4c595c',cab:'#7c9088',cabLine:'#687b74',ink:'#1b2523',red:'#d64541',green:'#2e8b57'};
+  const FL=["......ssss......","......ssss......","......oeeo......","......oeeo......","......oMMo......","......oLLo......","......oLLo......",".....oLLLLo.....","....oLLLLLLo....","...oLLLLLLLLo...","..oLwLLLLLLLLo..","..oLwLLLLLLLLo..",".oLLLLkLLkLLLLo.",".oLLLLLLLLLLLLo.",".oLLLLLkkLLLLLo.",".oLLLLLLLLLLLLo.","..oLLLLLLLLLLo..","...oLLLLLLLLo...","....oooooooo...."];
+  const LEG={a:["....kk....kk....","....kk....kk....","...kkk...kkk...."],b:[".....kk..kk.....","....kk....kk....","...kk......kk..."],j:["....kk....kk....","...kk......kk...","................"]};
+  const BOT=["...cccc...","...cccc...","...oeeo...","..oeeeeo..",".oLLLLLLo.",".ollllllo.",".ollllllo.",".ollllllo.",".oLLLLLLo.",".oLLLLLLo.",".oooooooo."];
+  const HEART=[".kk.kk.","kkkkkkk","kkkkkkk",".kkkkk.","..kkk..","...k..."];
+  const PF={s:'#3e4c49',o:'#1b2523',e:'#eef7f5',M:'#1b2523',k:'#1b2523',w:'#ffffff'};
+  const FONT='"Pixelify Sans", ui-monospace, monospace';
+
+  function px(x,y,w,h,c){ctx.fillStyle=c;const X=Math.round(x*s),Y=Math.round(y*s);ctx.fillRect(X,Y,Math.max(1,Math.round((x+w)*s)-X),Math.max(1,Math.round((y+h)*s)-Y))}
+  function spr(rows,pal,x,y,u=1){for(let r=0;r<rows.length;r++){const row=rows[r];for(let c=0;c<row.length;c++){const ch=row[c];if(ch==='.')continue;const col=pal[ch];if(col)px(x+c*u,y+r*u,u,u,col)}}}
+  function txt(t,x,y,size,col,align='left',w=400){ctx.font=`${w} ${size*s}px ${FONT}`;ctx.fillStyle=col;ctx.textAlign=align;ctx.textBaseline='alphabetic';ctx.fillText(t,x*s,y*s)}
+  function tw(t,size,w=400){ctx.font=`${w} ${size*s}px ${FONT}`;return ctx.measureText(t).width/s}
+  function wrap(t,x,y,maxW,size,lh,col,align='center',w=400){const words=String(t).split(' ');let line='',yy=y;for(const wd of words){const test=line?line+' '+wd:wd;if(tw(test,size,w)>maxW&&line){txt(line,x,yy,size,col,align,w);line=wd;yy+=lh}else line=test}if(line)txt(line,x,yy,size,col,align,w);return yy}
+  function flaskRows(f){const n=Math.round(Math.max(0,Math.min(1,f))*13);return FL.map((row,r)=>row.replace(/L/g,()=>r>=18-n?'L':'e'))}
+  const liq=()=>val(sol.liq);
+
+  function resize(){if(!cv)return;const box=cv.parentElement.clientWidth-0;const cssW=Math.max(260,box);W=cssW<560?240:320;H=150;GY=126;const dpr=Math.min(3,window.devicePixelRatio||1);const cssH=cssW*H/W;cv.style.height=cssH+'px';cv.width=Math.round(cssW*dpr);cv.height=Math.round(cssH*dpr);s=cv.width/W;ctx.imageSmoothingEnabled=false}
+
+  function reset(){
+    const req=res.steps.filter(x=>x.k==='pre'||x.k==='add');const groups=[];
+    req.forEach(x=>{const g=groups[groups.length-1];if(x.grp&&g&&g.grp===x.grp)g.left.push(x);else groups.push({grp:x.grp,left:[x]})});
+    st={phase:'title',hearts:3,gi:0,groups,total:req.length,done:0,ents:[],parts:[],scroll:0,speed:1.8,gap:50,since:0,
+        p:{h:0,vy:0,leg:0},inv:0,filled:0,time:0,banner:0,qs:null,mixN:0,flip:0,qsErr:null,reason:''};
+    hooks.phase('title');
+  }
+  function begin(){reset();st.phase='run';hooks.phase('run');hooks.say('Go. The bar at the top shows the next bottle and how much. Run into it, jump everything else.','info')}
+
+  function curGroup(){return st.groups[st.gi]}
+  function spawn(){
+    const g=curGroup();if(!g){st.gap=999;return}
+    const onScreen=st.ents.some(e=>e.correct);const r=Math.random();st.since++;
+    const x=W+12;
+    if(!onScreen&&(st.since>=3||r<.42)){
+      const step=g.left[Math.floor(Math.random()*g.left.length)];
+      st.ents.push({type:'item',item:step.item,step,correct:true,x,alt:Math.random()<.4?27:0,vtxt:vShort(step.v,step.approx),w:10,h:11});st.since=0;
+    }else if(r<.78){
+      const step=g.left[Math.floor(Math.random()*g.left.length)];
+      const pool=sol.decoys().filter(([id])=>!g.left.some(x=>x.item===id));
+      let d;
+      if((!pool.length||Math.random()<.35)&&!step.approx){
+        const wv=step.v*10<=res.V*.6?step.v*10:step.v/10;
+        d={item:step.item,v:wv,reason:`Right bottle, wrong amount. This step is ${vShort(step.v)}, not ${vShort(wv)}.`};
+      }else if(pool.length){const [id,why]=pool[Math.floor(Math.random()*pool.length)];d={item:id,v:step.v,reason:why}}
+      if(d)st.ents.push({type:'item',item:d.item,correct:false,reason:d.reason,x,alt:Math.random()<.5?27:0,vtxt:vShort(d.v,step.approx),w:10,h:11});
+      else hazard(x);
+    }else hazard(x);
+    st.gap=74+Math.random()*64+st.speed*10;
+  }
+  function hazard(x){const g=Math.random()<.5;st.ents.push(g?{type:'glass',x,alt:0,w:12,h:5,reason:'Broken glass on the bench. Jump it, and sweep it into the broken-glass bin (17.3).'}:{type:'acid',x,alt:0,w:16,h:3,reason:'Acid spill on the bench. Jump it, and clean it up before you carry on (4.4).'})}
+  function burst(x,y,col){for(let i=0;i<12;i++)st.parts.push({x,y,vx:(Math.random()-.5)*2.4,vy:-Math.random()*2.2-.4,life:40+Math.random()*20,c:col})}
+  function hurt(reason){if(st.inv>0)return;st.hearts--;st.inv=1100;st.reason=reason;hooks.say(reason,'bad');
+    if(st.hearts<=0){st.phase='over';hooks.phase('over')}}
+
+  function update(dt){
+    const k=dt/16.667;
+    for(const p of st.parts){p.x+=p.vx*k;p.y+=p.vy*k;p.vy+=.12*k;p.life-=k}st.parts=st.parts.filter(p=>p.life>0);
+    if(st.phase==='title'){st.scroll+=.4*k;st.p.leg+=.4*k;return}
+    if(st.phase==='run'||st.phase==='toqs'){
+      st.time+=dt/1000;
+      st.speed=Math.min(3,1.8+st.done*.07+st.time*.004);
+      const dx=st.speed*k;st.scroll+=dx;st.p.leg+=dx;
+      if(st.p.h>0||st.p.vy>0){st.p.h+=st.p.vy*k;st.p.vy-=.26*k;if(st.p.h<=0){st.p.h=0;st.p.vy=0}}
+      if(st.inv>0)st.inv-=dt;
+      if(st.phase==='run'){st.gap-=dx;if(st.gap<=0)spawn()}
+      const px0=37,px1=47,ptop=GY-20-st.p.h,pbot=GY-st.p.h;
+      for(const e of st.ents){
+        const wasOn=e.x>-20;e.x-=dx;
+        if(e.gone||st.phase!=='run')continue;
+        const top=GY-e.alt-e.h,bot=GY-e.alt;
+        if(e.x+1<px1&&e.x+e.w-1>px0&&top<pbot-1&&bot>ptop+1){
+          e.gone=true;
+          if(e.type==='item'&&e.correct){
+            const g=curGroup();g.left=g.left.filter(x=>x!==e.step);st.done++;st.filled+=e.step.v;
+            burst(e.x+5,GY-e.alt-6,ITEMS[e.item].cap);
+            hooks.say(`+ ${e.step.approx?'about ':''}${fmtV(e.step.v)} ${ITEMS[e.item].full}`,'ok');
+            if(!g.left.length){st.gi++;if(st.gi>=st.groups.length){st.phase='toqs';st.banner=1500;hooks.phase('toqs')}}
+          }else hurt(e.reason);
+        }
+        if(wasOn&&e.x<=-20&&e.correct&&!e.gone&&st.phase==='run')hooks.say(`Missed the ${ITEMS[e.item].short}. It will come around again.`,'info');
+      }
+      st.ents=st.ents.filter(e=>!e.gone&&e.x>-24);
+      if(st.phase==='toqs'){st.banner-=dt;if(st.banner<=0)enterQS()}
+      return;
+    }
+    if(st.phase==='qs'){const q=st.qs;
+      if(q.pouring){q.level+=q.rate*dt/1000;q.dropT-=dt;if(q.dropT<=0){q.drops.push({y:20});q.dropT=55}}
+      for(const d of q.drops)d.y+=3.2*k;q.drops=q.drops.filter(d=>d.y<q.yLevel);
+      q.wob+=dt;return}
+    if(st.phase==='mix'&&st.flip>0){st.flip+=dt/340;if(st.flip>=1){st.flip=0;st.mixN++;
+      if(st.mixN>=6){st.phase='label';hooks.phase('label');hooks.say('Mixed. Label it before you set it down: name, prep date, expiration, initials.','ok')}}}
+  }
+
+  function enterQS(){
+    const V=res.V,tol=tolFor(V),span=tol*40;
+    st.qs={level:V-span*.65,lo:V-span*.8,hi:V+span*.2,tol,rate:span*.2,drop:tol*.45,pouring:false,held:false,drops:[],dropT:0,yLevel:0,wob:0};
+    st.phase='qs';hooks.phase('qs');
+    hooks.say(`Q.S. to the line with ${ITEMS[res.steps.find(x=>x.k==='qs').item].full}. Hold to pour, tap for single drops, then Cap it. Read the bottom of the meniscus.`,'info');
+  }
+  function drop(){if(st&&st.phase==='qs'){st.qs.level+=st.qs.drop;st.qs.drops.push({y:20})}}
+  function pour(on){if(st&&st.phase==='qs')st.qs.pouring=!!on}
+  function cap(){
+    if(!st||st.phase!=='qs')return;const q=st.qs,V=res.V,e=q.level-V;q.pouring=false;
+    if(e<-q.tol){hooks.say(`Below the line by ${(-e).toFixed(2)} mL. Add a few more drops.`,'info');return}
+    if(e>q.tol){st.hearts--;st.reason='Past the line. In the lab that flask gets dumped and remade.';
+      if(st.hearts<=0){st.phase='over';hooks.phase('over');hooks.say(st.reason,'bad');return}
+      hooks.say(st.reason+' Try the Q.S. again.','bad');q.level=V-q.tol*40*.65;return}
+    st.qsErr=e;st.phase='mix';hooks.phase('mix');hooks.say(`On the line: ${q.level.toFixed(2)} mL (Class A allows ±${q.tol.toFixed(2)}). Cap it and invert to mix.`,'ok');
+  }
+  function bestKey(){return `best.${sol.id}${sol.id==='cal'?curCal().n:''}${sol.chain?state.chain:''}.${res.V}`}
+  function finish(){
+    st.phase='done';const b=store.get(bestKey(),null);st.best=b;
+    if(b==null||st.time<b){store.set(bestKey(),+st.time.toFixed(1));st.newBest=true}
+    hooks.phase('done');hooks.say(`Batch ready in ${st.time.toFixed(1)} s with ${st.hearts} of 3 hearts. Q.S. off by ${st.qsErr>=0?'+':''}${st.qsErr.toFixed(2)} mL.`,'ok');
+  }
+  function press(){
+    if(!st)return;
+    switch(st.phase){
+      case 'title':begin();break;
+      case 'run':if(st.p.h===0&&st.p.vy===0)st.p.vy=4.6;break;
+      case 'qs':{const q=st.qs;q.held=true;clearTimeout(q.ht);q.ht=setTimeout(()=>{if(q.held)q.pouring=true},170);break}
+      case 'mix':if(st.flip===0)st.flip=.001;break;
+      case 'label':finish();break;
+      case 'done':case 'over':begin();break;
+    }
+  }
+  function release(){if(!st||st.phase!=='qs')return;const q=st.qs;if(!q.held)return;q.held=false;clearTimeout(q.ht);if(!q.pouring)drop();q.pouring=false}
+
+  /* --- drawing --- */
+  function drawEquip(i,x){
+    const kind=((i%3)+3)%3;
+    if(kind===0){px(x,46,92,GY-46,'#b8c7c1');px(x+4,50,84,48,'#cfe7ec');px(x+4,72,84,2,'#9fb7b0');px(x+4,50,84,1,'#9fb7b0');txt('FUME HOOD',x+46,112,6,'#61736c','center',600)}
+    else if(kind===1){px(x,GY-46,82,46,'#e6ecea');px(x,GY-46,82,1,'#93a39d');px(x+6,GY-38,32,15,'#33413d');px(x+66,GY-38,6,6,'#57d18a');txt('7800',x+22,GY-27,6,'#a7f0c4','center');txt('THE DUDE',x+41,GY-8,6.5,'#4b5c56','center',600)}
+    else{px(x,GY-40,52,40,'#eceeea');px(x,GY-40,52,1,'#93a39d');px(x+12,GY-32,28,20,'#c6d0cc');px(x+15,GY-29,22,14,'#56655f');txt('MW 5000',x+26,GY-3,5.5,'#56655f','center',600)}
+  }
+  function drawBg(sc){
+    px(0,0,W,GY,C.wall);
+    const off=-((sc*.15)%16);for(let x=off;x<W;x+=16)px(x,0,1,GY,C.wall2);
+    const eo=sc*.45,span=280,si=Math.floor(eo/span)-1;for(let i=si;i<si+4;i++)drawEquip(i,i*span-eo+30);
+    px(0,36,W,3,C.shelf);px(0,39,W,1,'#71837c');
+    const so=sc*.3,sp=22,bi=Math.floor(so/sp)-1;const cols=['#e7d07a','#9fd0e8','#d9b8f0','#a8dcb9','#f2b8a0'];
+    for(let i=bi;i<bi+Math.ceil(W/sp)+3;i++){const x=i*sp-so,h=6+(((i*7)%5)+5)%5;px(x+6,36-h,5,h,cols[((i%5)+5)%5]);px(x+7,34-h,3,2,'#55635e')}
+    px(0,GY,W,4,C.bench);px(0,GY,W,1,C.benchHi);px(0,GY+4,W,H-GY-4,C.cab);
+    const co=-(sc%48);for(let x=co;x<W;x+=48){px(x,GY+4,1,H-GY-4,C.cabLine);px(x+21,GY+10,5,2,'#4d5c57')}
+  }
+  function drawEnt(e,t){
+    const y=GY-e.alt-e.h;
+    if(e.type==='item'){const it=ITEMS[e.item];
+      spr(BOT,{c:it.cap,o:C.ink,e:'#f4fbf9',L:it.liq,l:'#ffffff'},e.x,y);
+      const t1=it.short,t2=e.vtxt,w=Math.max(tw(t1,6.5,600),tw(t2,6))+6,cx=e.x+5,ty=y-18;
+      px(cx-w/2,ty,w,15,'rgba(255,255,255,.93)');px(cx-w/2,ty+15,w,1,C.ink);px(cx,ty+15,1,2,C.ink);
+      txt(t1,cx,ty+6.8,6.5,C.ink,'center',600);txt(t2,cx,ty+13.2,6,'#3d4b47','center');
+    }else if(e.type==='glass'){
+      px(e.x,GY-2,12,2,'#bfe4ef');px(e.x+2,GY-4,2,2,'#cdeaf2');px(e.x+6,GY-5,2,3,'#e4f5f9');px(e.x+9,GY-3,2,1,'#ffffff');px(e.x,GY-1,12,1,'#6fa5b6');
+      txt('glass',e.x+6,GY-8,5.5,C.red,'center',600);
+    }else{
+      px(e.x,GY-2,16,2,'#c3df45');px(e.x+2,GY-3,12,1,'#d9f06e');const b=Math.floor(t/140)%8;px(e.x+3+b,GY-4,1,1,'#eaff9a');
+      const f=(t/60)%10;px(e.x+5,GY-6-f,1,1,'rgba(200,230,120,.7)');px(e.x+10,GY-9-((f+4)%10),1,1,'rgba(200,230,120,.6)');
+      txt('spill',e.x+8,GY-10,5.5,C.red,'center',600);
+    }
+  }
+  function drawRunner(t){
+    const fr=st.p.h>0?LEG.j:(Math.floor(st.p.leg/6)%2?LEG.b:LEG.a);
+    if(st.inv>0&&Math.floor(t/90)%2)return;
+    spr(flaskRows(Math.min(.92,st.filled/res.V*.95+.02)).concat(fr),{...PF,L:liq()},34,GY-22-st.p.h);
+  }
+  function drawHUD(){
+    for(let i=0;i<3;i++)spr(HEART,{k:i<st.hearts?C.red:'#9aa9a3'},6+i*9,6);
+    txt(`${st.done}/${st.total}`,W-6,12,7,C.ink,'right',600);txt(st.time.toFixed(1)+' s',W-6,21,6,'#4b5c56','right');
+    const g=curGroup();
+    if(g){const n=g.left.map(x=>`${ITEMS[x.item].short} ${vShort(x.v,x.approx)}`);
+      const line=g.left.length>1?'NEXT, any order: '+n.slice(0,2).join(', ')+(n.length>2?` +${n.length-2}`:''):'NEXT: '+n[0];
+      const w=tw(line,7,600)+10;px(W/2-w/2,4,w,12,'rgba(255,255,255,.94)');px(W/2-w/2,16,w,1,C.ink);txt(line,W/2,13,7,C.ink,'center',600)}
+  }
+  function card(w,h){const x=W/2-w/2,y=H/2-h/2;px(0,0,W,H,'rgba(18,26,24,.55)');px(x,y,w,h,'#fbfdfc');px(x,y,w,1.5,C.ink);px(x,y+h-1.5,w,1.5,C.ink);px(x,y,1.5,h,C.ink);px(x+w-1.5,y,1.5,h,C.ink);return {x,y}}
+  function drawQS(t){
+    drawBg(st.scroll);px(0,0,W,H,'rgba(18,26,24,.6)');
+    const q=st.qs,V=res.V,cx=W/2,nw=13,col=liq();
+    const yOf=L=>124-(L-q.lo)/(q.hi-q.lo)*104;
+    px(cx-44,8,88,H-16,'#f7fbfa');
+    px(cx-30,yOf(V+q.tol),60,Math.max(1,yOf(V-q.tol)-yOf(V+q.tol)),'rgba(46,139,87,.22)');
+    const yl=Math.max(12,yOf(q.level));q.yLevel=yl;
+    px(cx-nw,yl,nw*2,H-9-yl,col);px(cx-nw,yl-3,2,3,col);px(cx+nw-2,yl-3,2,3,col);px(cx-nw+2,yl-1.5,3,1.5,col);px(cx+nw-5,yl-1.5,3,1.5,col);
+    px(cx-nw+3,yl+4,2,H-20-yl>0?Math.min(30,H-20-yl):0,'rgba(255,255,255,.35)');
+    px(cx-nw-2,8,2,H-16,C.ink);px(cx+nw,8,2,H-16,C.ink);
+    const yL=yOf(V);px(cx-nw-7,yL-.5,nw*2+14,1,C.ink);
+    // eye at the line
+    px(cx-40,yL-2.5,9,5,'#ffffff');px(cx-40,yL-3,9,1,C.ink);px(cx-40,yL+2,9,1,C.ink);px(cx-37,yL-1.5,3,3,C.ink);
+    for(let x=cx-29;x<cx-nw-3;x+=3)px(x,yL-.25,1.5,.5,'#5b6a65');
+    // wash bottle
+    const bx=cx+50;px(bx,26,22,34,'#e6f6ff');px(bx,26,22,1,C.ink);px(bx,59,22,1,C.ink);px(bx,26,1,34,C.ink);px(bx+21,26,1,34,C.ink);
+    px(bx+2,40,18,19,'#cfeeff');px(bx+7,21,8,5,'#2f9fd8');px(cx,15,bx+11-cx,1.5,'#9fb7b0');px(bx+10,15,1.5,6,'#9fb7b0');px(cx-1,15,1.5,4,'#9fb7b0');
+    txt('DI',bx+11,52,6,'#2f6f96','center',600);
+    if(q.pouring)px(cx-.5,19,1,yl-19,col);
+    for(const d of q.drops)px(cx-1,d.y,2,3,col);
+    const over=q.level>V+q.tol;
+    txt('VOLUME',cx-50,40,6,'#cfe0da','right',600);
+    txt(q.level.toFixed(2),cx-50,54,11,over?'#ff8f86':'#ffffff','right',600);
+    txt('mL',cx-50,63,6,'#cfe0da','right');
+    txt(`line ${V.toFixed(2)}`,cx-50,80,6,'#cfe0da','right');txt(`±${q.tol.toFixed(2)} Class A`,cx-50,89,6,'#cfe0da','right');
+    if(over)txt('OVER THE LINE',cx,22,7,C.red,'center',600);
+    txt('eye level',cx-36,yL+10,5.5,'#5b6a65','center');
+    for(let i=0;i<3;i++)spr(HEART,{k:i<st.hearts?C.red:'#9aa9a3'},6+i*9,6);
+  }
+  function drawMix(){
+    drawBg(st.scroll);px(0,0,W,H,'rgba(18,26,24,.55)');
+    const e=st.flip>0?(1-Math.cos(st.flip*Math.PI))/2:0,a=(st.mixN+e)*Math.PI,u=3;
+    ctx.save();ctx.translate((W/2)*s,(H/2+6)*s);ctx.rotate(a);
+    const rows=flaskRows(1).map(r=>r.replace(/e/g,'L'));spr(rows,{...PF,L:liq()},-8*u,-9.5*u,u);ctx.restore();
+    txt(`CAP ON · INVERT TO MIX  ${st.mixN}/6`,W/2,18,8,'#ffffff','center',600);
+  }
+  function drawLabel(done){
+    drawBg(st.scroll);
+    const w=Math.min(W-28,230),h=104,{x,y}=card(w,h);
+    const now=new Date(),ex=sol.exp?fmtD(addMonths(now,sol.exp)):'per QA';
+    const code=val(sol.code),n=state.num[sol.id];
+    txt(`${code}${sol.id==='cal'?'':'-'+(n||'__')}`,x+10,y+17,10,C.ink,'left',600);
+    wrap(val(sol.name),x+10,y+30,w-20,6.5,8,'#3d4b47','left',600);
+    txt(`${res.V} mL · ${chipsFor(res).slice(0,2).join(' · ')}`.slice(0,58),x+10,y+52,6,'#3d4b47');
+    txt(`PREP ${fmtD(now)}`,x+10,y+68,7,C.ink,'left',600);txt(`EXP  ${ex}`,x+10,y+79,7,C.ink,'left',600);
+    txt(`INIT ${state.init||'__'}`,x+w-10,y+68,7,C.ink,'right',600);txt(`log ${sol.log}`,x+w-10,y+79,6,'#5b6a65','right');
+    if(done){txt('BATCH READY',x+w/2,y+h-8,8,C.green,'center',600);if(st.newBest)txt('NEW BEST',x+w-10,y+17,7,'#b8860b','right',600);else if(st.best!=null)txt(`best ${st.best}s`,x+w-10,y+17,6,'#5b6a65','right')}
+    else txt('SPACE / TAP TO STICK IT ON',x+w/2,y+h-8,6.5,'#5b6a65','center',600);
+  }
+  function draw(t){
+    if(!ctx)return;ctx.clearRect(0,0,cv.width,cv.height);
+    if(st.phase==='qs')return drawQS(t);
+    if(st.phase==='mix')return drawMix();
+    if(st.phase==='label'||st.phase==='done')return drawLabel(st.phase==='done');
+    drawBg(st.scroll);
+    for(const e of st.ents)drawEnt(e,t);
+    drawRunner(t);
+    for(const p of st.parts)px(p.x,p.y,1.5,1.5,p.c);
+    if(st.phase==='run'||st.phase==='toqs')drawHUD();
+    if(st.phase==='toqs'){const w=tw('ALL IN. TIME TO Q.S.',11,600)+20;px(W/2-w/2,50,w,22,'#1b2523');txt('ALL IN. TIME TO Q.S.',W/2,65,11,'#f1c544','center',600)}
+    if(st.phase==='title'){
+      const w=Math.min(W-24,250),{x,y}=card(w,104);
+      txt(`MAKE ${val(sol.code)}`,W/2,y+16,7,'#8a5f00','center',600);
+      const ly=wrap(val(sol.name),W/2,y+30,w-20,10,11,C.ink,'center',600);
+      txt(`${res.V} mL flask · ${st.total} bottle${st.total>1?'s':''} + Q.S.`,W/2,ly+12,6.5,'#3d4b47','center');
+      wrap('Run into the right bottle, in SOP order. Jump the wrong ones, the glass and the spills.',W/2,ly+24,w-24,6,8,'#56655f');
+      if(Math.floor(t/500)%2)txt('SPACE / TAP TO START',W/2,y+98,7,C.ink,'center',600);
+      const b=store.get(bestKey(),null);if(b!=null)txt(`best ${b}s`,x+w-8,y+12,6,'#5b6a65','right');
+    }
+    if(st.phase==='over'){const w=Math.min(W-24,240),{y}=card(w,80);
+      txt('BATCH CONTAMINATED',W/2,y+18,10,C.red,'center',600);wrap(st.reason,W/2,y+33,w-24,6.5,9,'#3d4b47');
+      txt('SPACE / TAP TO REMAKE',W/2,y+72,7,C.ink,'center',600)}
+  }
+  function frame(t){raf=requestAnimationFrame(frame);const dt=Math.min(50,t-(last||t));last=t;if(st){update(dt);draw(t)}}
+  return {
+    mount(canvas,_sol,_res,_hooks){sol=_sol;res=_res;hooks=_hooks;cv=canvas;ctx=cv.getContext('2d');resize();reset();if(!raf){last=0;raf=requestAnimationFrame(frame)}},
+    unmount(){cancelAnimationFrame(raf);raf=0;cv=null;ctx=null;st=null},
+    active:()=>!!cv,resize,press,release,pour,drop,cap,restart:begin,phase:()=>st&&st.phase
+  };
+})();
+
+/* ---------- UI ---------- */
+const VOLS=[10,50,100,200,250,500,1000,'sop'];
+function renderVols(){
+  const isStd=VOLS.includes(state.vol);
+  $('#vols').innerHTML=VOLS.map(v=>`<button type="button" class="chip${v===200?' mine':''}" data-v="${v}" aria-pressed="${state.vol===v}">${v==='sop'?'SOP size':v+' mL'}${v===200?' · mine':''}</button>`).join('')+
+   `<label class="other" for="volOther">other <input id="volOther" type="number" min="5" max="4000" step="1" inputmode="numeric" value="${isStd?'':state.vol}" placeholder="mL"></label>`;
+  $('#vols').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{const v=b.dataset.v;setVol(v==='sop'?'sop':+v)});
+  $('#volOther').onchange=e=>{const v=Math.round(+e.target.value);if(v>=5&&v<=4000)setVol(v)};
+}
+function setVol(v){state.vol=v;store.set('vol',v);renderVols();renderView()}
+function renderMode(){$('#mPlay').setAttribute('aria-pressed',state.mode==='play');$('#mLearn').setAttribute('aria-pressed',state.mode==='learn')}
+$('#mPlay').onclick=()=>{state.mode='play';store.set('mode','play');renderMode();renderView()};
+$('#mLearn').onclick=()=>{state.mode='learn';store.set('mode','learn');renderMode();renderView()};
+
+function renderTabs(){
+  const tabs=[{id:'solutions',label:'All solutions'},...SOLS.map(s=>({id:s.id,label:s.tab,col:val(s.liq)}))];
+  $('#tabs').innerHTML=tabs.map(t=>`<button type="button" role="tab" class="tab" data-t="${t.id}" aria-selected="${state.tab===t.id}">${t.col?`<span class="dot" style="background:${t.col}"></span>`:''}${esc(t.label)}</button>`).join('');
+  $('#tabs').querySelectorAll('.tab').forEach(b=>b.onclick=()=>openTab(b.dataset.t));
+  const a=$('#tabs').querySelector('[aria-selected="true"]');if(a)a.scrollIntoView({block:'nearest',inline:'nearest'});
+}
+function openTab(id){state.tab=id;try{history.replaceState(null,'','#'+id)}catch(e){}renderTabs();renderView();window.scrollTo({top:0})}
+
+function renderView(){
+  Game.unmount();
+  const v=$('#view');
+  if(state.tab==='solutions'){v.innerHTML=overviewHTML();bindOverview();return}
+  const sol=SOL[state.tab],r=resolve(sol);
+  v.innerHTML=headHTML(sol,r)+(state.mode==='play'?playHTML(sol,r):learnHTML(sol,r))+
+    `<p class="foot">Bottle and liquid colors are for the game; the real solutions are clear. Volumes scale linearly from SOP 2-HMN v10.0; concentrations never change. Check anything new against the SOP and your QA manager before it goes in a logbook.</p>`;
+  bindSol(sol,r);
+}
+
+function overviewHTML(){
+  const groups=[['Reagents','form 4-HMR',['gold','diluent','rinse']],['Working standards','form 4-HMWSP',['istd','tune','ws1i','ws1c','ws2','ws3','ws4']],['Calibration standards','form 4-HMCS',['cal']],['QC check','form 4-HMWSP',['ccv']]];
+  const vtxt=state.vol==='sop'?'the SOP batch size':`a ${state.vol} mL flask`;
+  let rows='';
+  for(const [g,form,ids] of groups){
+    rows+=`<tr class="grp"><th colspan="5">${g}<span>${form}</span></th></tr>`;
+    for(const id of ids){const sol=SOL[id];
+      if(id==='cal'){
+        const V=volFor(sol),f=V/sol.base;
+        const lv=CAL.slice(1).map(c=>`L${c.n} ${num(c.ppb)} ppb: ${c.v*f<1?fmtUL(c.v*f):fmtV(c.v*f)} ${c.src==='ws4i'?'WS4':'WS3'}`).join('<br>');
+        rows+=`<tr class="row"><td><button class="nm" data-go="cal"><span class="dot" style="background:${val(sol.liq)}"></span>Calibration standards L1–L7</button><div class="muted" style="font-size:12.5px">one flask per level</div></td><td class="mono">Cal L1–L7</td><td>0–50 ppb; Hg 0–5 ppb, in diluent</td><td class="mono">${V} mL each, Q.S. diluent<br>L1 diluent only<br>${lv}</td><td class="mono">per QA</td></tr>`;
+        continue;}
+      const r=resolve(sol);
+      rows+=`<tr class="row"><td><button class="nm" data-go="${id}"><span class="dot" style="background:${val(sol.liq)}"></span>${esc(val(sol.name))}</button></td><td class="mono">${val(sol.code)}-#</td><td>${esc(val(sol.matrix))}</td><td class="mono">${r.V} mL: ${esc(shortRecipe(r))}</td><td class="mono">${sol.exp} months</td></tr>`;
+    }
+  }
+  const fc=(id,l)=>`<button class="fchip" data-go="${id}"><span class="dot" style="background:${val(SOL[id].liq)}"></span>${l}</button>`;
+  const A='<span class="arr">→</span>';
+  return `<section class="ov-intro">
+    <p>Thirteen solutions keep the metals method running. Every number below is worked out for <b>${vtxt}</b>. Change the flask size above and everything rescales; concentrations stay exactly as the SOP has them. Open any one to play it as a run or step through it in Learn mode.</p>
+    <div class="flow" aria-label="Prep order">
+      <h3>Prep order</h3>
+      <div class="flowrow"><span class="fchip stock">Au 1000 ppm</span>${A}${fc('gold','Gold 100 ppm')}${A}${fc('diluent','Diluent')}${A}${fc('cal','Cal L1–L7')}<span class="arr">+</span>${fc('ccv','CCV')}</div>
+      <div class="flowrow"><span class="fchip stock">metal stocks 1000 ppm</span>${A}${fc('ws1i','WS1 ICAL')}${A}WS2${A}WS3${A}WS4<span class="arr">→ L2–L7</span></div>
+      <div class="flowrow"><span class="fchip stock">metal stocks 1000 ppm</span>${A}${fc('ws1c','WS1 CCV')}${A}WS2${A}WS3<span class="arr">→ CCV</span></div>
+      <div class="flowrow"><span class="fchip stock">DI + acids</span>${A}${fc('rinse','Rinse')}${fc('istd','Internal std')}${fc('tune','Tuning')}</div>
+    </div>
+    ${state.vol!=='sop'&&state.vol>50?`<div class="callout"><b>Working standards at ${state.vol} mL</b> use ${num(state.vol/10)}× the stock the SOP’s 10 mL batch does. The SOP allows the analyst to change their volume (7.4.3.3); WS1 at ${state.vol} mL takes ${fmtV(state.vol/10)} of each 1000 ppm stock.</div>`:''}
+  </section>
+  <div class="tbl"><table><thead><tr><th>Solution</th><th>Code</th><th>Final</th><th>What goes in</th><th>Expires</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+function bindOverview(){$('#view').querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>openTab(b.dataset.go))}
+
+function headHTML(sol,r){
+  const opts=[];
+  if(sol.chain)opts.push(`<span class="lbl">Chain</span>`+['ical','ccv'].map(c=>`<button type="button" class="chip" data-chain="${c}" aria-pressed="${state.chain===c}">${c==='ical'?'ICAL (Hg ÷10)':'CCV (Hg same)'}</button>`).join(''));
+  if(sol.id==='cal')opts.push(`<span class="lbl">Level</span>`+CAL.map(c=>`<button type="button" class="chip" data-cal="${c.n}" aria-pressed="${state.cal===c.n}">L${c.n} · ${num(c.ppb)} ppb</button>`).join(''));
+  const exp=sol.exp?`${sol.exp} months`:'not set in SOP';
+  return `<section class="solhead"><div>
+      <span class="code">${esc(val(sol.code))}${sol.id==='cal'?'':'-#'}</span>
+      <h2>${esc(val(sol.name))}</h2><p class="matrix">${esc(val(sol.matrix))}</p></div>
+    <dl class="facts"><dt>Flask</dt><dd>${r.V} mL ±${tolFor(r.V).toFixed(2)}</dd><dt>SOP batch</dt><dd>${sol.base} mL</dd><dt>Expires</dt><dd>${exp}</dd><dt>SOP</dt><dd>${esc(sol.sop)}</dd><dt>Log</dt><dd>${sol.log}</dd></dl>
+  </section>
+  <div class="chips">${chipsFor(r).map(c=>`<span class="ac">${esc(c)}</span>`).join('')}</div>
+  ${opts.length?`<div class="opts">${opts.join('<span style="width:8px"></span>')}</div>`:''}
+  ${sol.callout&&(r.V!==sol.base||sol.id==='cal'||sol.id==='ccv')?`<div class="callout">${esc(sol.callout)}</div>`:''}
+  ${r.warns.map(w=>`<div class="callout warn">${esc(w)}</div>`).join('')}`;
+}
+function stepsHTML(sol,r,checkable){
+  const ck=state.checks[ckKey(sol)]||new Set();
+  const qsIt=ITEMS[(r.steps.find(s=>s.k==='qs')||{}).item]||ITEMS.di;
+  const list=[...r.steps,{k:'mix'},{k:'label'}];
+  return `<ol class="steps">${list.map((s,i)=>{
+    const it=ITEMS[s.item];let title='',sub='',vol='';
+    if(s.k==='pre'){title=`Add about ${fmtV(s.v)} of ${it.full}`;sub=s.note||'';vol=`~${fmtV(s.v)}`}
+    else if(s.k==='add'){title=`Pipette ${it.full}`;const p=pipPlan(s);sub=(p?p:`<span class="warn">Too small to pipette at this flask size.</span>`)+(s.grp?' · any order within the stocks':'');vol=fmtV(s.v)+(s.v<1?`<small>${fmtUL(s.v)}</small>`:'')}
+    else if(s.k==='qs'){title=`Q.S. to the line with ${it.full}`;sub=`Bottom of the meniscus on the line at eye level. ${pipPlan(s)}`;vol=`≈${fmtV(s.v)}`}
+    else if(s.k==='mix'){title='Stopper and invert to mix';sub='Ten or so inversions, until there are no streaks.'}
+    else {title='Label and log it';sub=`Name, prep date, expiration date, initials. Record it on form ${sol.log}.`}
+    const done=ck.has(i);
+    return `<li class="${done?'done':''}">${checkable?`<button type="button" class="sn" data-i="${i}" aria-pressed="${done}" aria-label="Mark step ${i+1} done">${i+1}</button>`:`<span class="sn">${i+1}</span>`}
+      <div class="stxt"><b>${esc(title)}</b>${sub?`<small>${sub}</small>`:''}</div><div class="svol">${vol}</div></li>`}).join('')}</ol>`;
+}
+function playHTML(sol,r){
+  return `<div class="stage"><canvas id="game" tabindex="0" aria-label="Flask run game: catch the ingredients for ${esc(val(sol.name))} in order"></canvas></div>
+  <div class="gmsg info" id="gmsg" aria-live="polite">Press Space or tap the bench to start.</div>
+  <div class="pad" id="pad"></div>
+  <details class="cheat"><summary>Show the recipe card</summary><div class="inner">${stepsHTML(sol,r,false)}</div></details>`;
+}
+const ckKey=sol=>sol.id+(sol.id==='cal'?curCal().n:'')+(sol.chain?state.chain:'')+'@'+volFor(sol);
+function fillFrac(sol,r){const ck=state.checks[ckKey(sol)]||new Set();let v=0,full=false;r.steps.forEach((s,i)=>{if(!ck.has(i))return;if(s.k==='qs')full=true;else v+=s.v});return full?1:Math.min(.97,v/r.V)}
+function levelY(f){return f>=.97?151-(f-.97)/.03*91:310-(f/.97)*159}
+function flaskSVG(sol,r){
+  const f=fillFrac(sol,r);
+  return `<figure class="flaskfig"><svg viewBox="0 0 200 330" role="img" aria-label="Volumetric flask, ${Math.round(f*100)}% filled">
+    <defs><clipPath id="fc"><path d="M90 16 L90 151 A80 80 0 1 0 110 151 L110 16 Z"/></clipPath></defs>
+    <path d="M90 16 L90 151 A80 80 0 1 0 110 151 L110 16 Z" fill="var(--surface)"/>
+    <g clip-path="url(#fc)"><rect id="liq" x="0" y="0" width="200" height="340" fill="${val(sol.liq)}" opacity=".75" style="transform:translateY(${levelY(f)}px)"/></g>
+    <path d="M90 16 L90 151 A80 80 0 1 0 110 151 L110 16 Z" fill="none" stroke="var(--ink)" stroke-width="3"/>
+    <line x1="84" y1="60" x2="116" y2="60" stroke="var(--ink)" stroke-width="2.5"/>
+    <rect x="86" y="2" width="28" height="16" rx="3" fill="var(--ink)"/>
+    <text x="100" y="236" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="15" font-weight="600" fill="var(--ink)">${r.V} mL</text>
+    <text x="100" y="254" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="var(--ink)">±${tolFor(r.V).toFixed(2)} · TC 20 °C · A</text>
+  </svg><figcaption id="fcap">${f>=1?'at the line':Math.round(f*100)+'% of the way'}</figcaption></figure>`;
+}
+function learnHTML(sol,r){
+  const math=[];
+  r.steps.forEach(s=>{if(s.k!=='add')return;const it=ITEMS[s.item];
+    if(it.conc)groupConc(it.conc).forEach(g=>math.push(`${g.names.join('/')} ${fmtC(g.c)} × ${fmtV(s.v)} ÷ ${fmtV(r.V)} = <b>${fmtC(g.c*s.v/r.V)}</b>`));
+    if(it.acid)math.push(`${it.acid} ${fmtV(s.v)} ÷ ${fmtV(r.V)} = <b>${num(s.v/r.V*100,2)}%</b> v/v conc. acid`);});
+  if(r.inDil)math.push('Made up in diluent, so it also carries <b>4% HNO₃, 0.8% HCl, 200 ppb Au</b>.');
+  if(!math.length)math.push('Nothing added. It is diluent at the line.');
+  const now=new Date(),ex=sol.exp?fmtD(addMonths(now,sol.exp)):'set by QA';
+  return `<div class="learn">${flaskSVG(sol,r)}<div>
+    <h3>Steps · tap a number to check it off</h3>${stepsHTML(sol,r,true)}
+    <div class="lgrid">
+      <section><h3>The math, C₁V₁ = C₂V₂</h3><ul class="math">${math.map(m=>`<li>${m}</li>`).join('')}</ul></section>
+      <section><h3>Label</h3><div class="labelcard">
+        <span class="big">${esc(val(sol.code))}${sol.id==='cal'?'':`-<input id="lblNum" type="text" maxlength="5" value="${esc(state.num[sol.id]||'')}" placeholder="#" aria-label="Preparation number">`}</span>
+        <span>${esc(val(sol.name))}</span><span>${esc(val(sol.matrix))}</span>
+        <span>Prep ${fmtD(now)} · Exp ${ex}</span>
+        <span>Initials <input id="lblInit" type="text" maxlength="4" value="${esc(state.init)}" placeholder="__" aria-label="Your initials"></span>
+      </div></section>
+      <section><h3>Why it matters</h3><ul class="notes">${sol.notes.map(n=>`<li>${esc(n)}</li>`).join('')}</ul></section>
+      <section><h3>Safety</h3><ul class="notes">${(sol.safety||[]).map(n=>`<li>${esc(n)}</li>`).join('')}<li>Lab coat, safety glasses and nitrile gloves (4.1).</li></ul></section>
+    </div></div></div>`;
+}
+function say(t,kind){const m=$('#gmsg');if(m){m.textContent=t;m.className='gmsg '+(kind||'info')}}
+function pad(p){
+  const el=$('#pad');if(!el)return;
+  const B=(id,label,cls='')=>`<button class="pbtn ${cls}" id="${id}" type="button">${label}</button>`;
+  let h='';
+  if(p==='title')h=B('pStart','Start run<kbd>Space</kbd>','main');
+  else if(p==='run')h=B('pJump','Jump<kbd>Space</kbd>','main');
+  else if(p==='toqs')h='<span class="padnote">All ingredients in. Heading to the Q.S.…</span>';
+  else if(p==='qs')h=B('pPour','Hold to pour','main')+B('pDrop','One drop<kbd>D</kbd>')+B('pCap','Cap it<kbd>Enter</kbd>','cap');
+  else if(p==='mix')h=B('pInv','Invert<kbd>Space</kbd>','main');
+  else if(p==='label')h=B('pFin','Stick the label<kbd>Space</kbd>','main');
+  else h=B('pAgain','Run again','main')+B('pLearn','Learn this one');
+  el.innerHTML=h;
+  const cvs=$('#game'),refocus=()=>cvs&&cvs.focus({preventScroll:true});
+  const on=(id,fn)=>{const b=$('#'+id);if(b)b.onclick=()=>{fn();refocus()}};
+  on('pStart',Game.press);on('pJump',Game.press);on('pInv',Game.press);on('pFin',Game.press);on('pAgain',Game.restart);on('pDrop',Game.drop);on('pCap',Game.cap);
+  const l=$('#pLearn');if(l)l.onclick=()=>$('#mLearn').click();
+  const pp=$('#pPour');if(pp){pp.onpointerdown=e=>{e.preventDefault();pp.setPointerCapture?.(e.pointerId);Game.pour(true)};
+    ['pointerup','pointercancel','lostpointercapture'].forEach(ev=>pp.addEventListener(ev,()=>Game.pour(false)));pp.oncontextmenu=e=>e.preventDefault()}
+}
+function bindSol(sol,r){
+  const v=$('#view');
+  v.querySelectorAll('[data-chain]').forEach(b=>b.onclick=()=>{state.chain=b.dataset.chain;store.set('chain',state.chain);renderTabs();renderView()});
+  v.querySelectorAll('[data-cal]').forEach(b=>b.onclick=()=>{state.cal=+b.dataset.cal;store.set('cal',state.cal);renderView()});
+  v.querySelectorAll('.sn[data-i]').forEach(b=>b.onclick=()=>{
+    const k=ckKey(sol),set=state.checks[k]||(state.checks[k]=new Set()),i=+b.dataset.i;
+    set.has(i)?set.delete(i):set.add(i);const li=b.closest('li');li.classList.toggle('done',set.has(i));b.setAttribute('aria-pressed',set.has(i));
+    const f=fillFrac(sol,r),liq=$('#liq');if(liq)liq.style.transform=`translateY(${levelY(f)}px)`;const fc=$('#fcap');if(fc)fc.textContent=f>=1?'at the line':Math.round(f*100)+'% of the way'});
+  const ln=$('#lblNum');if(ln)ln.oninput=e=>{state.num[sol.id]=e.target.value;store.set('num',state.num)};
+  const li=$('#lblInit');if(li)li.oninput=e=>{state.init=e.target.value.toUpperCase();store.set('init',state.init)};
+  const cvs=$('#game');
+  if(cvs){
+    Game.mount(cvs,sol,r,{say,phase:pad});
+    cvs.addEventListener('pointerdown',e=>{e.preventDefault();cvs.focus({preventScroll:true});cvs.setPointerCapture?.(e.pointerId);Game.press()});
+    cvs.addEventListener('pointerup',()=>Game.release());cvs.addEventListener('pointercancel',()=>Game.release());
+    cvs.oncontextmenu=e=>e.preventDefault();
+  }
+}
+window.addEventListener('keydown',e=>{
+  if(!Game.active())return;const t=e.target;
+  if(t&&t.closest&&t.closest('input,textarea,select,button,summary,a'))return;
+  const r=$('#game').getBoundingClientRect();if(r.bottom<0||r.top>innerHeight)return;
+  if(e.code==='Space'||e.code==='ArrowUp'){e.preventDefault();if(!e.repeat)Game.press()}
+  else if(e.code==='Enter'){if(Game.phase()==='qs'){e.preventDefault();Game.cap()}}
+  else if(e.code==='KeyD'){Game.drop()}
+});
+window.addEventListener('keyup',e=>{if(Game.active()&&(e.code==='Space'||e.code==='ArrowUp'))Game.release()});
+let rt;window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>Game.resize(),120)});
+
+/* ---------- boot ---------- */
+(function(){
+  const h=(location.hash||'').slice(1);if(h&&(h==='solutions'||SOL[h]))state.tab=h;
+  renderMode();renderVols();renderTabs();renderView();
+  if(document.fonts&&document.fonts.load)document.fonts.load('600 16px "Pixelify Sans"').catch(()=>{});
+})();
+</script>
+</body>
+</html>
